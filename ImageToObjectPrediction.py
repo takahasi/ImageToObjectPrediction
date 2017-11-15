@@ -48,15 +48,21 @@ imagetoobjectprediction_spec = [
     "lang_type", "SCRIPT",
     "conf.default.model", "googlenet.model",
     "conf.default.labels", "labels.txt",
-    "conf.default.mean", "mean.npy",
+    "conf.default.decision_rate", "0.4",
+    "conf.default.decision_count", "2",
     "conf.default.display_num", "10",
     "conf.__widget__.model", "text",
     "conf.__widget__.labels", "text",
-    "conf.__widget__.mean", "text",
+    "conf.__widget__.decision_rate", "slider",
+    "conf.__widget__.decision_count", "slider",
     "conf.__widget__.display_num", "text",
     "conf.__type__.model", "string",
     "conf.__type__.labels", "string",
+    "conf.__type__.decision_rate", "double",
+    "conf.__type__.decision_count", "int",
     "conf.__type__.display_num", "int",
+    "conf.__constraints__.decision_rate", "0.0<=x<=1.0",
+    "conf.__constraints__.decision_count", "0<=x<=99",
     ""
 ]
 # </rtc-template>
@@ -101,6 +107,18 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         self._labels = ['labels.txt']
         """
 
+         - Name:  decision_rate
+         - DefaultValue: 0.4
+        """
+        self._decision_rate = [0.4]
+        """
+
+         - Name:  decision_count
+         - DefaultValue: 2
+        """
+        self._decision_count = [2]
+        """
+
          - Name:  display_num
          - DefaultValue: 10
         """
@@ -109,8 +127,9 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         # </rtc-template>
 
         self._net_model = GoogLeNet()
-        self._previous_object = ""
         self._log = OpenRTM_aist.Manager.instance().getLogbuf("ImageToObjectPrediction")
+        self._previous_object = ""
+        self._match_count = 0
 
     ##
     #
@@ -124,6 +143,8 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         # Bind variables and configuration variable
         self.bindParameter("model", self._model, "googlenet.model")
         self.bindParameter("labels", self._labels, "labels.txt")
+        self.bindParameter("decision_rate", self._decision_rate, "0.4")
+        self.bindParameter("decision_count", self._decision_count, "2")
         self.bindParameter("display_num", self._display_num, "10")
 
         # Set InPort buffers
@@ -193,6 +214,8 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         #
     def onActivated(self, ec_id):
 
+        self._previous_object = ""
+        self._match_count = 0
         serializers.load_npz(self._model[0], self._net_model)
 
         return RTC.RTC_OK
@@ -248,11 +271,15 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         for i, (score, label) in enumerate(result[:self._display_num[0]]):
             self._log.RTC_DEBUG('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
 
-        if result[0][0] > 0.5:
+        if result[0][0] > self._decision_rate[0]:
             if result[0][1] == self._previous_object:
-                self._d_out_name.data = result[0][1]
-                self._out_nameOut.write()
-                self._log.RTC_INFO("Recognized Object: " + str(self._d_out_name.data))
+                self._match_count += 1
+                if self._match_count >= self._decision_count:
+                    self._d_out_name.data = result[0][1]
+                    self._out_nameOut.write()
+                    self._log.RTC_INFO("Recognized Object: " + str(self._d_out_name.data))
+            else:
+                self._match_count = 0
 
             self._previous_object = result[0][1]
 
