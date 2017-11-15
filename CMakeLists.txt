@@ -1,6 +1,6 @@
 cmake_minimum_required(VERSION 2.8 FATAL_ERROR)
 
-project(chainerInspectorRTC NONE)
+project(ImageToObjectPrediction NONE)
 
 set(CMAKE_ALLOW_LOOSE_LOOP_CONSTRUCTS true)
 set(CMAKE_MODULE_PATH "${PROJECT_SOURCE_DIR}/cmake_modules")
@@ -16,7 +16,7 @@ set(RTC_VERSION_MAJOR "1")
 set(RTC_VERSION_MINOR "0")
 set(RTC_VERSION_PATCH "0")
 set(RTC_LANG "python")
-set(RTC_DESCRIPTION "inspect image by chainer")
+set(RTC_DESCRIPTION "predict image by chainer")
 set(RTC_VENDOR "takahasi")
 set(RTC_MAINTAINER "author@example.com")
 
@@ -27,11 +27,11 @@ set(IDL_FILES ""
 )
 
 set(EXEC_FILES ""
-               chainerInspectorRTC.py
+               ImageToObjectPrediction.py
 )
 
 set(OTHER_SRCS CMakeLists.txt
-               RTC.xml chainerInspectorRTC.conf rtc.conf)
+               RTC.xml ImageToObjectPrediction.conf rtc.conf)
 
 
 # check OpenRTM installed

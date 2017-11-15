@@ -3,15 +3,13 @@
 # -*- Python -*-
 
 """
- @file chainerInspectorRTC.py
- @brief inspect image by chainer
+ @file ImageToObjectPrediction.py
+ @brief predict object by chainer
  @date $Date$
 
 
 """
 import sys
-import time
-sys.path.append(".")
 
 # Import RTM module
 import RTC
@@ -29,148 +27,145 @@ import OpenRTM_aist
 
 import numpy as np
 import chainer.functions as F
-from chainer import initializers, optimizers, serializers, cuda, Variable
-import chainer.links as L
+from chainer import serializers, Variable
 from googlenet import GoogLeNet
 import cv2
 
+sys.path.append(".")
 
 # This module's spesification
 # <rtc-template block="module_spec">
-chainerinspectorrtc_spec = ["implementation_id", "chainerInspectorRTC", 
-         "type_name",         "chainerInspectorRTC", 
-         "description",       "inspect image by chainer", 
-         "version",           "1.0.0", 
-         "vendor",            "takahasi", 
-         "category",          "Category", 
-         "activity_type",     "STATIC", 
-         "max_instance",      "1", 
-         "language",          "Python", 
-         "lang_type",         "SCRIPT",
-         "conf.default.model", "googlenet.model",
-         "conf.default.labels", "labels.txt",
-         "conf.default.mean", "mean.npy",
-         "conf.default.display_num", "10",
-
-         "conf.__widget__.model", "text",
-         "conf.__widget__.labels", "text",
-         "conf.__widget__.mean", "text",
-         "conf.__widget__.display_num", "text",
-
-         "conf.__type__.model", "string",
-         "conf.__type__.labels", "string",
-         "conf.__type__.display_num", "int",
-
-         ""]
+imagetoobjectprediction_spec = [
+    "implementation_id", "ImageToObjectPrediction",
+    "type_name", "ImageToObjectPrediction",
+    "description", "predict image by chainer",
+    "version", "1.0.0",
+    "vendor", "takahasi",
+    "category", "Category",
+    "activity_type", "STATIC",
+    "max_instance", "1",
+    "language", "Python",
+    "lang_type", "SCRIPT",
+    "conf.default.model", "googlenet.model",
+    "conf.default.labels", "labels.txt",
+    "conf.default.mean", "mean.npy",
+    "conf.default.display_num", "10",
+    "conf.__widget__.model", "text",
+    "conf.__widget__.labels", "text",
+    "conf.__widget__.mean", "text",
+    "conf.__widget__.display_num", "text",
+    "conf.__type__.model", "string",
+    "conf.__type__.labels", "string",
+    "conf.__type__.display_num", "int",
+    ""
+]
 # </rtc-template>
 
+
 ##
-# @class chainerInspectorRTC
-# @brief inspect image by chainer
-# 
-# 
-class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
-    
+# @class ImageToObjectPrediction
+# @brief predict image by chainer
+#
+#
+class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
+
     ##
     # @brief constructor
     # @param manager Maneger Object
-    # 
+    #
     def __init__(self, manager):
         OpenRTM_aist.DataFlowComponentBase.__init__(self, manager)
 
-        in_img_arg = [None] * ((len(RTC._d_CameraImage) - 4) / 2)
-        self._d_in_img = RTC.CameraImage(*in_img_arg)
-        """
-        """
+        self._d_in_img = RTC.CameraImage(RTC.Time(0, 0), 0, 0, 0, [], 0, [])
         self._in_imageIn = OpenRTM_aist.InPort("in_image", self._d_in_img)
-        out_img_arg = [None] * ((len(RTC._d_CameraImage) - 4) / 2)
-        self._d_out_img = RTC.CameraImage(*out_img_arg)
-        """
-        """
+
+        self._d_out_img = RTC.CameraImage(RTC.Time(0, 0), 0, 0, 0, [], 0, [])
         self._out_imageOut = OpenRTM_aist.OutPort("out_image", self._d_out_img)
 
-
-
+        self._d_out_name = RTC.TimedString(RTC.Time(0, 0), [])
+        self._out_nameOut = OpenRTM_aist.OutPort("out_name", self._d_out_name)
 
         # initialize of configuration-data.
         # <rtc-template block="init_conf_param">
         """
-        
+
          - Name:  model
          - DefaultValue: googlenet.model
         """
         self._model = ['googlenet.model']
         """
-        
+
          - Name:  labels
          - DefaultValue: labels.txt
         """
         self._labels = ['labels.txt']
         """
-        
+
          - Name:  display_num
          - DefaultValue: 10
         """
         self._display_num = [10]
-        
+
         # </rtc-template>
 
         self._net_model = GoogLeNet()
+        self._log = OpenRTM_aist.Manager.instance().getLogbuf("ImageToObjectPrediction")
 
     ##
     #
     # The initialize action (on CREATED->ALIVE transition)
-    # formaer rtc_init_entry() 
-    # 
+    # formaer rtc_init_entry()
+    #
     # @return RTC::ReturnCode_t
-    # 
+    #
     #
     def onInitialize(self):
         # Bind variables and configuration variable
         self.bindParameter("model", self._model, "googlenet.model")
         self.bindParameter("labels", self._labels, "labels.txt")
         self.bindParameter("display_num", self._display_num, "10")
-        
+
         # Set InPort buffers
-        self.addInPort("in_image",self._in_imageIn)
-        
+        self.addInPort("in_image", self._in_imageIn)
+
         # Set OutPort buffers
-        self.addOutPort("out_image",self._out_imageOut)
-        
+        self.addOutPort("out_image", self._out_imageOut)
+        self.addOutPort("out_name", self._out_nameOut)
+
         # Set service provider to Ports
-        
+
         # Set service consumers to Ports
-        
+
         # Set CORBA Service Ports
-        
+
         return RTC.RTC_OK
-    
+
     #   ##
-    #   # 
+    #   #
     #   # The finalize action (on ALIVE->END transition)
     #   # formaer rtc_exiting_entry()
-    #   # 
+    #   #
     #   # @return RTC::ReturnCode_t
     #
-    #   # 
-    #def onFinalize(self):
+    #   #
+    # def onFinalize(self):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The startup action when ExecutionContext startup
     #   # former rtc_starting_entry()
-    #   # 
+    #   #
     #   # @param ec_id target ExecutionContext Id
     #   #
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onStartup(self, ec_id):
+    # def onStartup(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The shutdown action when ExecutionContext stop
@@ -181,17 +176,17 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onShutdown(self, ec_id):
+    # def onShutdown(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
         ##
         #
         # The activated action (Active state entry action)
         # former rtc_active_entry()
         #
         # @param ec_id target ExecutionContext Id
-        # 
+        #
         # @return RTC::ReturnCode_t
         #
         #
@@ -212,9 +207,9 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
         #
         #
     def onDeactivated(self, ec_id):
-    
+
         return RTC.RTC_OK
-    
+
         ##
         #
         # The execution action that is invoked periodically
@@ -250,7 +245,11 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
         result = zip(prediction.data.reshape((prediction.data.size,)), categories)
         result = sorted(result, reverse=True)
         for i, (score, label) in enumerate(result[:self._display_num[0]]):
-            print('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
+            self._log.RTC_INFO('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
+
+        self._d_out_name.data = result[0][1]
+        self._out_nameOut.write()
+        self._log.RTC_INFO("Object: " + str(result[0][1]))
 
         return RTC.RTC_OK
 
@@ -264,10 +263,10 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onAborting(self, ec_id):
+    # def onAborting(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The error action in ERROR state
@@ -278,10 +277,10 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onError(self, ec_id):
+    # def onError(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The reset action that is invoked resetting
@@ -292,10 +291,10 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onReset(self, ec_id):
+    # def onReset(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The state update action that is invoked after onExecute() action
@@ -307,10 +306,10 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   #
 
     #   #
-    #def onStateUpdate(self, ec_id):
+    # def onStateUpdate(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
+
     #   ##
     #   #
     #   # The action that is invoked when execution context's rate is changed
@@ -321,24 +320,24 @@ class chainerInspectorRTC(OpenRTM_aist.DataFlowComponentBase):
     #   # @return RTC::ReturnCode_t
     #   #
     #   #
-    #def onRateChanged(self, ec_id):
+    # def onRateChanged(self, ec_id):
     #
     #   return RTC.RTC_OK
-    
 
 
-
-def chainerInspectorRTCInit(manager):
-    profile = OpenRTM_aist.Properties(defaults_str=chainerinspectorrtc_spec)
+def ImageToObjectPredictionInit(manager):
+    profile = OpenRTM_aist.Properties(defaults_str=imagetoobjectprediction_spec)
     manager.registerFactory(profile,
-                            chainerInspectorRTC,
+                            ImageToObjectPrediction,
                             OpenRTM_aist.Delete)
 
+
 def MyModuleInit(manager):
-    chainerInspectorRTCInit(manager)
+    ImageToObjectPredictionInit(manager)
 
     # Create a component
-    comp = manager.createComponent("chainerInspectorRTC")
+    comp = manager.createComponent("ImageToObjectPrediction")
+
 
 def main():
     mgr = OpenRTM_aist.Manager.init(sys.argv)
@@ -348,4 +347,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
