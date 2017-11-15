@@ -8,13 +8,7 @@ Model is GoogLenet as default.
 `pip install chainer`
 
 ### opencv
-- Linux
-  - `sudo apt-get install python-opencv`
-- Windows
-  - 32bit
-    - copy cv2.pyd from lib/opencv/win/x86
-  - 64bit
-    - Nothing
+`pip install opencv-python`
 
 ## Usage
 `python ImageToObjectPrediction.py`
