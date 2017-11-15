@@ -246,7 +246,7 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         result = zip(prediction.data.reshape((prediction.data.size,)), categories)
         result = sorted(result, reverse=True)
         for i, (score, label) in enumerate(result[:self._display_num[0]]):
-            self._log.RTC_DEBUG('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
+            self._log.RTC_INFO('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
 
         if self._previous_object == result[0][1]:
             self._d_out_name.data = result[0][1]
