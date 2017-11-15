@@ -48,7 +48,7 @@ imagetoobjectprediction_spec = [
     "lang_type", "SCRIPT",
     "conf.default.model", "googlenet.model",
     "conf.default.labels", "labels.txt",
-    "conf.default.decision_rate", "0.4",
+    "conf.default.decision_rate", "0.3",
     "conf.default.decision_count", "2",
     "conf.default.display_num", "10",
     "conf.__widget__.model", "text",
@@ -108,9 +108,9 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         """
 
          - Name:  decision_rate
-         - DefaultValue: 0.4
+         - DefaultValue: 0.3
         """
-        self._decision_rate = [0.4]
+        self._decision_rate = [0.3]
         """
 
          - Name:  decision_count
@@ -143,7 +143,7 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         # Bind variables and configuration variable
         self.bindParameter("model", self._model, "googlenet.model")
         self.bindParameter("labels", self._labels, "labels.txt")
-        self.bindParameter("decision_rate", self._decision_rate, "0.4")
+        self.bindParameter("decision_rate", self._decision_rate, "0.3")
         self.bindParameter("decision_count", self._decision_count, "2")
         self.bindParameter("display_num", self._display_num, "10")
 
@@ -271,10 +271,10 @@ class ImageToObjectPrediction(OpenRTM_aist.DataFlowComponentBase):
         for i, (score, label) in enumerate(result[:self._display_num[0]]):
             self._log.RTC_DEBUG('{:>3d} {:>6.2f}% {}'.format(i + 1, score * 100, label))
 
-        if result[0][0] > self._decision_rate[0]:
+        if result[0][0] > float(self._decision_rate[0]):
             if result[0][1] == self._previous_object:
                 self._match_count += 1
-                if self._match_count >= self._decision_count:
+                if self._match_count >= int(self._decision_count[0]):
                     self._d_out_name.data = result[0][1]
                     self._out_nameOut.write()
                     self._log.RTC_INFO("Recognized Object: " + str(self._d_out_name.data))
